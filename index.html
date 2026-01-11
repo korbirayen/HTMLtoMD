@@ -1,1 +1,672 @@
-<p>Hello, World!</p>
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>HTML → Markdown</title>
+		<style>
+			:root {
+				color-scheme: light dark;
+				--bg: Canvas;
+				--fg: CanvasText;
+				--muted: color-mix(in oklab, CanvasText 55%, Canvas 45%);
+				--border: color-mix(in oklab, CanvasText 20%, Canvas 80%);
+				--surface: color-mix(in oklab, Canvas 92%, CanvasText 8%);
+				--surface2: color-mix(in oklab, Canvas 96%, CanvasText 4%);
+			}
+
+			* {
+				box-sizing: border-box;
+			}
+
+			body {
+				margin: 0;
+				background: var(--bg);
+				color: var(--fg);
+				font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+				line-height: 1.4;
+			}
+
+			header {
+				padding: 12px 16px;
+				border-bottom: 1px solid var(--border);
+				background: var(--surface2);
+				display: flex;
+				gap: 12px;
+				align-items: center;
+				justify-content: space-between;
+			}
+
+			header h1 {
+				font-size: 16px;
+				margin: 0;
+				font-weight: 650;
+			}
+
+			.actions {
+				display: flex;
+				gap: 8px;
+				align-items: center;
+			}
+
+			button {
+				appearance: none;
+				border: 1px solid var(--border);
+				background: var(--surface);
+				color: inherit;
+				border-radius: 8px;
+				padding: 8px 10px;
+				font-weight: 600;
+				cursor: pointer;
+			}
+			button:hover {
+				filter: brightness(0.98);
+			}
+			button:active {
+				transform: translateY(1px);
+			}
+			button:disabled {
+				opacity: 0.55;
+				cursor: not-allowed;
+			}
+
+			.status {
+				font-size: 12px;
+				color: var(--muted);
+				min-width: 120px;
+				text-align: right;
+			}
+
+			main {
+				padding: 16px;
+			}
+
+			.grid {
+				display: grid;
+				grid-template-columns: 1fr 1fr 1fr;
+				gap: 12px;
+				align-items: stretch;
+			}
+
+			.panel {
+				border: 1px solid var(--border);
+				border-radius: 10px;
+				overflow: hidden;
+				min-height: calc(100vh - 110px);
+				background: var(--surface2);
+				display: flex;
+				flex-direction: column;
+			}
+
+			.panel h2 {
+				margin: 0;
+				padding: 10px 12px;
+				border-bottom: 1px solid var(--border);
+				font-size: 13px;
+				font-weight: 650;
+				color: var(--muted);
+				background: var(--surface2);
+			}
+
+			textarea {
+				width: 100%;
+				height: 100%;
+				flex: 1;
+				border: 0;
+				resize: none;
+				padding: 12px;
+				font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+				font-size: 12.5px;
+				line-height: 1.45;
+				background: transparent;
+				color: inherit;
+				outline: none;
+				tab-size: 2;
+			}
+
+			.preview {
+				flex: 1;
+				padding: 12px;
+				overflow: auto;
+				background: transparent;
+			}
+
+			.preview :first-child {
+				margin-top: 0;
+			}
+
+			.preview h1,
+			.preview h2,
+			.preview h3,
+			.preview h4,
+			.preview h5,
+			.preview h6 {
+				margin: 14px 0 8px;
+				line-height: 1.2;
+			}
+
+			.preview p {
+				margin: 10px 0;
+			}
+
+			.preview pre {
+				margin: 10px 0;
+				padding: 10px;
+				border: 1px solid var(--border);
+				border-radius: 10px;
+				overflow: auto;
+				background: var(--surface);
+			}
+
+			.preview code {
+				font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+				font-size: 0.95em;
+			}
+
+			.preview blockquote {
+				margin: 10px 0;
+				padding: 8px 10px;
+				border-left: 3px solid var(--border);
+				background: var(--surface);
+			}
+
+			.preview hr {
+				border: 0;
+				border-top: 1px solid var(--border);
+				margin: 14px 0;
+			}
+
+			.preview a {
+				color: inherit;
+			}
+
+			@media (max-width: 1100px) {
+				.grid {
+					grid-template-columns: 1fr;
+				}
+				.panel {
+					min-height: 42vh;
+				}
+				.status {
+					min-width: auto;
+				}
+			}
+		</style>
+	</head>
+	<body>
+		<header>
+			<h1>HTML → Markdown</h1>
+			<div class="actions">
+				<button id="convertBtn" type="button">Convert.</button>
+				<button id="copyBtn" type="button">Copy Markdown</button>
+				<div id="status" class="status"></div>
+			</div>
+		</header>
+
+		<main>
+			<div class="grid">
+				<section class="panel">
+					<h2>HTML Input</h2>
+					<textarea
+						id="htmlInput"
+						spellcheck="false"
+						placeholder="Paste HTML here…"
+					></textarea>
+				</section>
+
+				<section class="panel">
+					<h2>Markdown Output</h2>
+					<textarea id="mdOutput" spellcheck="false" readonly></textarea>
+				</section>
+
+				<section class="panel">
+					<h2>Preview</h2>
+					<div id="preview" class="preview" aria-label="Markdown preview"></div>
+				</section>
+			</div>
+		</main>
+
+		<script>
+			const htmlInput = document.getElementById("htmlInput");
+			const mdOutput = document.getElementById("mdOutput");
+			const preview = document.getElementById("preview");
+			const convertBtn = document.getElementById("convertBtn");
+			const copyBtn = document.getElementById("copyBtn");
+			const statusEl = document.getElementById("status");
+
+			function setStatus(message) {
+				statusEl.textContent = message || "";
+			}
+
+			function normalizeNewlines(text) {
+				return String(text).replace(/\r\n?/g, "\n");
+			}
+
+			function escapeHtml(text) {
+				return String(text)
+					.replace(/&/g, "&amp;")
+					.replace(/</g, "&lt;")
+					.replace(/>/g, "&gt;")
+					.replace(/\"/g, "&quot;")
+					.replace(/'/g, "&#39;");
+			}
+
+			function escapeAttr(text) {
+				return escapeHtml(text).replace(/\n/g, " ");
+			}
+
+			function sanitizeUrl(url) {
+				const raw = String(url || "").trim();
+				if (!raw) return "";
+				// Allow common safe protocols and relative URLs.
+				if (/^(https?:|mailto:)/i.test(raw)) return raw;
+				if (/^(\/|\.|#)/.test(raw)) return raw;
+				return "";
+			}
+
+			function collapseWhitespace(text) {
+				// Collapse runs of whitespace, but keep single spaces.
+				return String(text).replace(/\s+/g, " ");
+			}
+
+			function escapeMarkdownText(text) {
+				// Minimal escaping for plain text segments.
+				return String(text)
+					.replace(/\\/g, "\\\\")
+					.replace(/`/g, "\\`")
+					.replace(/\*/g, "\\*")
+					.replace(/_/g, "\\_")
+					.replace(/\[/g, "\\[")
+					.replace(/\]/g, "\\]");
+			}
+
+			function inlineChildrenToMd(el, ctx) {
+				let out = "";
+				for (const child of Array.from(el.childNodes)) {
+					out += nodeToMd(child, { ...ctx, inline: true });
+				}
+				// Collapse repeated spaces created by inline whitespace nodes.
+				return out.replace(/[ \t]{2,}/g, " ");
+			}
+
+			function blockChildrenToMd(el, ctx) {
+				let out = "";
+				for (const child of Array.from(el.childNodes)) {
+					out += nodeToMd(child, { ...ctx, inline: false });
+				}
+				return out;
+			}
+
+			function getLanguageFromClass(el) {
+				const cls = String(el.getAttribute("class") || "");
+				const m = cls.match(/language-([\w-]+)/i);
+				return m ? m[1] : "";
+			}
+
+			function fencedCodeBlock(codeText, language) {
+				const code = normalizeNewlines(codeText).replace(/\n+$/g, "\n");
+				const lang = language ? String(language).trim() : "";
+				return `\n\n\`\`\`${lang}\n${code}\n\`\`\`\n\n`;
+			}
+
+			function nodeToMd(node, ctx) {
+				if (!node) return "";
+
+				if (node.nodeType === Node.TEXT_NODE) {
+					const raw = node.nodeValue || "";
+					// Preserve whitespace between inline elements (e.g. </span> <span>).
+					if (!raw.trim()) return ctx.inline ? " " : "";
+					const text = collapseWhitespace(raw);
+					return escapeMarkdownText(text);
+				}
+
+				if (node.nodeType !== Node.ELEMENT_NODE) return "";
+				const el = node;
+				const tag = el.tagName.toLowerCase();
+
+				if (tag === "script" || tag === "style" || tag === "noscript") return "";
+
+				switch (tag) {
+					case "br":
+						return "  \n";
+					case "h1":
+					case "h2":
+					case "h3":
+					case "h4":
+					case "h5":
+					case "h6": {
+						const level = Number(tag.slice(1));
+						const text = inlineChildrenToMd(el, ctx).trim();
+						return `\n\n${"#".repeat(level)} ${text}\n\n`;
+					}
+					case "p": {
+						const text = blockChildrenToMd(el, ctx).trim();
+						return text ? `\n\n${text}\n\n` : "\n\n";
+					}
+					case "strong":
+					case "b": {
+						const text = inlineChildrenToMd(el, ctx);
+						return `**${text}**`;
+					}
+					case "em":
+					case "i": {
+						const text = inlineChildrenToMd(el, ctx);
+						return `*${text}*`;
+					}
+					case "code": {
+						// If inside a PRE, let PRE handle it.
+						if (el.parentElement && el.parentElement.tagName.toLowerCase() === "pre") {
+							return "";
+						}
+						const raw = normalizeNewlines(el.textContent || "").trim();
+						if (!raw) return "``";
+						const containsBacktick = raw.includes("`");
+						if (containsBacktick) {
+							return "`` " + escapeMarkdownText(raw) + " ``";
+						}
+						return "`" + escapeMarkdownText(raw) + "`";
+					}
+					case "pre": {
+						const codeEl = el.querySelector("code");
+						const codeText = codeEl ? codeEl.textContent || "" : el.textContent || "";
+						const lang = codeEl ? getLanguageFromClass(codeEl) : getLanguageFromClass(el);
+						return fencedCodeBlock(codeText, lang);
+					}
+					case "a": {
+						const href = sanitizeUrl(el.getAttribute("href") || "");
+						const text = inlineChildrenToMd(el, ctx).trim() || href || "link";
+						return href ? `[${text}](${href})` : text;
+					}
+					case "img": {
+						const src = sanitizeUrl(el.getAttribute("src") || "");
+						const alt = escapeMarkdownText(el.getAttribute("alt") || "");
+						return src ? `![${alt}](${src})` : "";
+					}
+					case "blockquote": {
+						const inner = blockChildrenToMd(el, ctx).trim();
+						if (!inner) return "";
+						const lines = normalizeNewlines(inner).split("\n");
+						return (
+							"\n\n" +
+							lines.map((l) => (l.trim() ? `> ${l}` : "> ")).join("\n") +
+							"\n\n"
+						);
+					}
+					case "hr":
+						return "\n\n---\n\n";
+					case "ul":
+					case "ol": {
+						const ordered = tag === "ol";
+						const indent = ctx.indent || 0;
+						let idx = 1;
+						let out = "\n\n";
+						for (const li of Array.from(el.children)) {
+							if (li.tagName.toLowerCase() !== "li") continue;
+							const prefix = ordered ? `${idx}. ` : "- ";
+							const pad = " ".repeat(indent);
+
+							// Convert LI content excluding nested lists first.
+							let liText = "";
+							for (const child of Array.from(li.childNodes)) {
+								if (
+									child.nodeType === Node.ELEMENT_NODE &&
+									["ul", "ol"].includes(child.tagName.toLowerCase())
+								) {
+									continue;
+								}
+								liText += nodeToMd(child, { ...ctx, inline: true, indent });
+							}
+							liText = liText.trim();
+							out += `${pad}${prefix}${liText}\n`;
+
+							// Now nested lists.
+							for (const child of Array.from(li.children)) {
+								const childTag = child.tagName.toLowerCase();
+								if (childTag === "ul" || childTag === "ol") {
+									out += nodeToMd(child, { ...ctx, indent: indent + 2 });
+								}
+							}
+							idx += 1;
+						}
+						return out + "\n";
+					}
+					case "li":
+						// Handled by UL/OL
+						return "";
+					case "div":
+					case "span":
+					case "section":
+					case "article":
+					case "main":
+					case "header":
+					case "footer":
+						return ctx.inline ? inlineChildrenToMd(el, ctx) : blockChildrenToMd(el, ctx);
+					default:
+						return ctx.inline ? inlineChildrenToMd(el, ctx) : blockChildrenToMd(el, ctx);
+				}
+			}
+
+			function htmlToMarkdown(html) {
+				const doc = new DOMParser().parseFromString(String(html || ""), "text/html");
+				let md = "";
+				for (const child of Array.from(doc.body.childNodes)) {
+					md += nodeToMd(child, { inline: false, indent: 0 });
+				}
+
+				md = normalizeNewlines(md)
+					.replace(/[ \t]+\n/g, "\n")
+					.replace(/\n[ \t]+/g, "\n")
+					.replace(/[ \t]+\n/g, "\n")
+					.replace(/\n{3,}/g, "\n\n")
+					.trim();
+
+				return md ? md + "\n" : "";
+			}
+
+			async function copyText(text) {
+				const value = String(text || "");
+				// Works on https:// and http://localhost
+				if (navigator.clipboard && window.isSecureContext) {
+					await navigator.clipboard.writeText(value);
+					return;
+				}
+
+				// Fallback for file:// or insecure contexts
+				const temp = document.createElement("textarea");
+				temp.value = value;
+				temp.setAttribute("readonly", "");
+				temp.style.position = "fixed";
+				temp.style.left = "-9999px";
+				document.body.appendChild(temp);
+				temp.select();
+				const ok = document.execCommand("copy");
+				document.body.removeChild(temp);
+				if (!ok) throw new Error("copy-failed");
+			}
+
+			// Minimal, safe Markdown preview renderer (subset).
+			function renderInlineMarkdown(text) {
+				// Escape first, then apply transformations that introduce HTML.
+				let s = escapeHtml(text);
+
+				// Inline code
+				s = s.replace(/`([^`\n]+)`/g, (m, code) => `<code>${escapeHtml(code)}</code>`);
+
+				// Images
+				s = s.replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, (m, alt, url) => {
+					const safeUrl = sanitizeUrl(url);
+					if (!safeUrl) return escapeHtml(m);
+					return `<img alt="${escapeAttr(alt)}" src="${escapeAttr(safeUrl)}" />`;
+				});
+
+				// Links
+				s = s.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (m, label, url) => {
+					const safeUrl = sanitizeUrl(url);
+					if (!safeUrl) return escapeHtml(label);
+					return `<a href="${escapeAttr(safeUrl)}" target="_blank" rel="noopener noreferrer">${label}</a>`;
+				});
+
+				// Bold then italic
+				s = s.replace(/\*\*([^*\n]+)\*\*/g, "<strong>$1</strong>");
+				s = s.replace(/\*([^*\n]+)\*/g, "<em>$1</em>");
+
+				return s;
+			}
+
+			function markdownToHtml(md) {
+				const lines = normalizeNewlines(md || "").split("\n");
+				let i = 0;
+				let html = "";
+
+				function readUntilEmpty(start) {
+					const out = [];
+					let j = start;
+					while (j < lines.length && lines[j].trim() !== "") {
+						out.push(lines[j]);
+						j += 1;
+					}
+					return { block: out, next: j };
+				}
+
+				while (i < lines.length) {
+					const line = lines[i];
+					const trimmed = line.trimEnd();
+
+					if (trimmed.trim() === "") {
+						i += 1;
+						continue;
+					}
+
+					// Code fences
+					// If newlines were stripped, a whole fenced block might collapse to one line:
+					// ```js\nconsole.log('x');\n``` -> ```jsconsole.log('x');```
+					// We can’t reliably split language vs code in that case, so just render the payload as code.
+					const collapsedFence = trimmed.match(/^```([\s\S]*?)```\s*$/);
+					if (collapsedFence) {
+						const code = escapeHtml(String(collapsedFence[1] || "").replace(/^\s+|\s+$/g, ""));
+						html += `<pre><code>${code}</code></pre>`;
+						i += 1;
+						continue;
+					}
+
+					const fenceMatch = trimmed.match(/^```\s*([\w-]+)?\s*$/);
+					if (fenceMatch) {
+						const lang = fenceMatch[1] || "";
+						i += 1;
+						const codeLines = [];
+						while (i < lines.length && !lines[i].trim().startsWith("```")) {
+							codeLines.push(lines[i]);
+							i += 1;
+						}
+						// Consume closing fence if present
+						if (i < lines.length && lines[i].trim().startsWith("```")) i += 1;
+						const code = escapeHtml(codeLines.join("\n"));
+						const cls = lang ? ` class="language-${escapeAttr(lang)}"` : "";
+						html += `<pre><code${cls}>${code}</code></pre>`;
+						continue;
+					}
+
+					// Headings
+					const headingMatch = trimmed.match(/^(#{1,6})\s+(.*)$/);
+					if (headingMatch) {
+						const level = headingMatch[1].length;
+						const content = renderInlineMarkdown(headingMatch[2].trim());
+						html += `<h${level}>${content}</h${level}>`;
+						i += 1;
+						continue;
+					}
+
+					// HR
+					if (/^(-{3,}|\*{3,}|_{3,})\s*$/.test(trimmed.trim())) {
+						html += "<hr />";
+						i += 1;
+						continue;
+					}
+
+					// Blockquote
+					if (/^>\s?/.test(trimmed)) {
+						const quoteLines = [];
+						while (i < lines.length && /^>\s?/.test(lines[i])) {
+							quoteLines.push(lines[i].replace(/^>\s?/, ""));
+							i += 1;
+						}
+						const content = quoteLines
+							.map((l) => (l.trim() ? renderInlineMarkdown(l) : ""))
+							.join("<br />");
+						html += `<blockquote>${content}</blockquote>`;
+						continue;
+					}
+
+					// Lists (simple)
+					const ulMatch = trimmed.match(/^[-*+]\s+(.*)$/);
+					const olMatch = trimmed.match(/^\d+\.\s+(.*)$/);
+					if (ulMatch || olMatch) {
+						const ordered = Boolean(olMatch);
+						const tag = ordered ? "ol" : "ul";
+						html += `<${tag}>`;
+						while (i < lines.length) {
+							const t = lines[i].trimEnd();
+							const um = t.match(/^[-*+]\s+(.*)$/);
+							const om = t.match(/^\d+\.\s+(.*)$/);
+							if ((ordered && !om) || (!ordered && !um)) break;
+							const itemText = ordered ? om[1] : um[1];
+							html += `<li>${renderInlineMarkdown(itemText.trim())}</li>`;
+							i += 1;
+						}
+						html += `</${tag}>`;
+						continue;
+					}
+
+					// Paragraph: consume consecutive non-empty lines.
+					const { block, next } = readUntilEmpty(i);
+					const content = block.map((l) => renderInlineMarkdown(l)).join("<br />");
+					html += `<p>${content}</p>`;
+					i = next;
+				}
+
+				return html;
+			}
+
+			function convertNow() {
+				const html = htmlInput.value;
+				const md = htmlToMarkdown(html);
+				mdOutput.value = md;
+				preview.innerHTML = markdownToHtml(md);
+				setStatus(md ? "Converted" : "");
+			}
+
+			let debounceTimer = null;
+			function scheduleConvert() {
+				if (debounceTimer) window.clearTimeout(debounceTimer);
+				debounceTimer = window.setTimeout(() => {
+					debounceTimer = null;
+					convertNow();
+				}, 200);
+			}
+
+			convertBtn.addEventListener("click", convertNow);
+			htmlInput.addEventListener("input", scheduleConvert);
+
+			copyBtn.addEventListener("click", async () => {
+				try {
+					await copyText(mdOutput.value || "");
+					setStatus("Copied");
+					window.setTimeout(() => setStatus(""), 800);
+				} catch {
+					setStatus("Copy failed");
+					window.setTimeout(() => setStatus(""), 1200);
+				}
+			});
+
+			// Starter content
+			htmlInput.value = `<h1>Example</h1>
+<p>This is <strong>bold</strong>, <em>italic</em>, and <a href="https://example.com">a link</a>.</p>
+<ul>
+	<li>Item one</li>
+	<li>Item two</li>
+</ul>
+<pre><code class="language-js">console.log('hello');</code></pre>`;
+			convertNow();
+		</script>
+	</body>
+</html>
